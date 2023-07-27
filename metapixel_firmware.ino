@@ -5,7 +5,7 @@
 #include <WiFiMulti.h>
 #include <ESPmDNS.h>
 #include <ArduinoOTA.h>
-#define OTA_PASS "karl"
+#define OTA_PASS "hugo"
 
 char host[22];
 WiFiMulti wifiMulti;
@@ -66,6 +66,9 @@ const uint16_t PROGMEM gamma28_8b_16b[] = {
 
 void setup() {
 
+	pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, HIGH);
+    
 	Serial.begin(BAUDRATE);
 
 	// build and set hostname
@@ -80,23 +83,21 @@ void setup() {
     Serial.println(host);
 
     // Wi-Fi
-    wifiMulti.addAP("FOULE NET", "hellohello");
-    wifiMulti.run();
+    WiFi.begin("domo", "th1Sp4((!");
 
     // OTA
     setupOTA();
 
-	ledcAttachPin(PIN_A_G, 0);
-	ledcAttachPin(PIN_A_R, 1);
+	ledcAttachPin(PIN_A_R, 0);
+	ledcAttachPin(PIN_A_G, 1);
 	ledcAttachPin(PIN_A_B, 2);
-	ledcAttachPin(PIN_B_G, 3);
-	ledcAttachPin(PIN_B_R, 4);
+	ledcAttachPin(PIN_B_R, 3);
+	ledcAttachPin(PIN_B_G, 4);
 	ledcAttachPin(PIN_B_B, 5);
-	ledcAttachPin(PIN_C_G, 6);
-	ledcAttachPin(PIN_C_R, 7);
+	ledcAttachPin(PIN_C_R, 6);
+	ledcAttachPin(PIN_C_G, 7);
 	ledcAttachPin(PIN_C_B, 8);
 	//ledcAttachPin(LED_BUILTIN, 9);
-	pinMode(LED_BUILTIN, OUTPUT);
 	pinMode(PIN_BTN, INPUT);
 
 	ledcSetup(0, PWM_FREQ, PWM_RES_BITS);
@@ -150,7 +151,7 @@ void onDmxFrame(uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* d
 void testMode(){
 	for (int i = 0; i < NUM_CHANNEL; ++i)
 	{
-		ledcWrite(i, gamma28_8b_16b[millis()%200]);
+		ledcWrite(i, gamma28_8b_16b[(millis()/10)%200]);
 	}
 }
 
@@ -158,7 +159,7 @@ void loop(){
 
     digitalWrite(LED_BUILTIN, HEARTBEAT);
 	// wifi
-    if(wifiMulti.run() != WL_CONNECTED){
+    if(WiFi.status() != WL_CONNECTED){
     	digitalWrite(LED_BUILTIN, HIGH);
    	}
 
