@@ -38,7 +38,7 @@ WiFiMulti wifiMulti;
 #define PWM_FREQ 1000
 #define PWM_RES_BITS 16
 #define INPUT_RES 255
-#define LOOP_INTERVAL 1  // global loop interval in ticks
+#define LOOP_INTERVAL 10  // global loop interval in ticks
 
 #define START_UNIV 1
 #define START_ADDR 1
@@ -67,26 +67,26 @@ const uint16_t PROGMEM gamma28_8b_16b[] = {
 void setup() {
 
 	pinMode(LED_BUILTIN, OUTPUT);
-    digitalWrite(LED_BUILTIN, HIGH);
+  digitalWrite(LED_BUILTIN, HIGH);
     
 	Serial.begin(BAUDRATE);
 
 	// build and set hostname
 	uint64_t mac = ESP.getEfuseMac();
-    uint64_t reversed_mac = 0;
+  uint64_t reversed_mac = 0;
 
-    for (int i = 0; i < 6; i++) {
-        reversed_mac |= ((mac >> (8 * i)) & 0xFF) << (8 * (5 - i));
-    }
+  for (int i = 0; i < 6; i++) {
+    reversed_mac |= ((mac >> (8 * i)) & 0xFF) << (8 * (5 - i));
+  }
 
-    snprintf(host, 22, "METAPIX-%llX", reversed_mac);
-    Serial.println(host);
+  snprintf(host, 22, "METAPIX-%llX", reversed_mac);
+  Serial.println(host);
 
-    // Wi-Fi
-    WiFi.begin("domo", "th1Sp4((!");
+  // Wi-Fi
+  WiFi.begin("FOULE_LED", "Bijahouix");
 
-    // OTA
-    setupOTA();
+  // OTA
+  setupOTA();
 
 	ledcAttachPin(PIN_A_R, 0);
 	ledcAttachPin(PIN_A_G, 1);
@@ -97,7 +97,7 @@ void setup() {
 	ledcAttachPin(PIN_C_R, 6);
 	ledcAttachPin(PIN_C_G, 7);
 	ledcAttachPin(PIN_C_B, 8);
-	//ledcAttachPin(LED_BUILTIN, 9);
+	ledcAttachPin(LED_BUILTIN, 9);
 	pinMode(PIN_BTN, INPUT);
 
 	ledcSetup(0, PWM_FREQ, PWM_RES_BITS);
@@ -109,18 +109,20 @@ void setup() {
 	ledcSetup(6, PWM_FREQ, PWM_RES_BITS);
 	ledcSetup(7, PWM_FREQ, PWM_RES_BITS);
 	ledcSetup(8, PWM_FREQ, PWM_RES_BITS);
-	//ledcSetup(9, PWM_FREQ, PWM_RES_BITS);
+	ledcSetup(9, PWM_FREQ, PWM_RES_BITS);
 
-    xTaskCreatePinnedToCore(
-        loop_metapixel,     // Function that should be called
-        "Metapixel",    // Name of the task (for debugging)
-        10000,           // Stack size (bytes)
-        NULL,            // Parameter to pass
-        3,               // Task priority
-        NULL,            // Task handle
-        !xPortGetCoreID()
-    );
-    delay(10);
+  xTaskCreatePinnedToCore(
+    loop_metapixel,     // Function that should be called
+    "Metapixel",    // Name of the task (for debugging)
+    20000,           // Stack size (bytes)
+    NULL,            // Parameter to pass
+    1,               // Task priority
+    NULL,            // Task handle
+    1                // pin to core 0
+  );
+  delay(10);
+  
+  digitalWrite(LED_BUILTIN, LOW);
 }
 
 void loop_metapixel(void * _){
@@ -136,12 +138,17 @@ void loop_metapixel(void * _){
 		}else{
 			testMode();
 		}
-		vTaskDelay(LOOP_INTERVAL);
+    vTaskDelay(0);
 	}
     vTaskDelete(NULL);
 }
 
+int frame_count;
+
 void onDmxFrame(uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* data) {
+  ledcWrite(9, gamma28_8b_16b[frame_count]);
+  frame_count ++;
+  frame_count %= 256;
 	for (int i = 0; i < NUM_CHANNEL; ++i)
 	{
 		ledcWrite(i, gamma28_8b_16b[data[i]]);
@@ -156,16 +163,14 @@ void testMode(){
 }
 
 void loop(){
+  // wifi
+  if(WiFi.status() != WL_CONNECTED){
+    ledcWrite(9, gamma28_8b_16b[255]);
+  }
 
-    digitalWrite(LED_BUILTIN, HEARTBEAT);
-	// wifi
-    if(WiFi.status() != WL_CONNECTED){
-    	digitalWrite(LED_BUILTIN, HIGH);
-   	}
-
-    // OTA
-    ArduinoOTA.handle();
-    vTaskDelay(LOOP_INTERVAL);
+  // OTA
+  ArduinoOTA.handle();
+  vTaskDelay(LOOP_INTERVAL);
 }
 
 
