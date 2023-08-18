@@ -118,7 +118,7 @@ void setup() {
     NULL,            // Parameter to pass
     1,               // Task priority
     NULL,            // Task handle
-    1                // pin to core 0
+    1                // pin to core 1
   );
   delay(10);
   
