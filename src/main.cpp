@@ -10,23 +10,7 @@
 char host[22];
 WiFiMulti wifiMulti;
 
-// Config
-#define PIN_A_G 27
-#define PIN_A_R 14
-#define PIN_A_B 12
-
-#define PIN_B_G 4
-#define PIN_B_R 16
-#define PIN_B_B 17
-
-#define PIN_C_G 5
-#define PIN_C_R 18
-#define PIN_C_B 19
-
 #define NUM_CHANNEL 9 
-
-#define LED_BUILTIN 2
-#define PIN_BTN 0
 
 #define BAUDRATE 115200
 
@@ -63,6 +47,52 @@ const uint16_t PROGMEM gamma28_8b_16b[] = {
   45588,46161,46737,47319,47905,48495,49091,49691,50295,50905,51519,52138,52761,53390,54023,54661,
   55303,55951,56604,57261,57923,58590,59262,59939,60621,61308,62000,62697,63399,64106,64818,65535
 };
+
+void testMode(){
+	for (int i = 0; i < NUM_CHANNEL; ++i)
+	{
+		ledcWrite(i, gamma28_8b_16b[(millis()/10)%200]);
+	}
+}
+
+void setupOTA(){
+    ArduinoOTA.setHostname(host);
+    ArduinoOTA.setPassword(OTA_PASS);
+    ArduinoOTA
+    .onStart([]() {
+    })
+    .onEnd([]() {
+    })
+    .onProgress([](unsigned int progress, unsigned int total) {
+        digitalWrite(LED_BUILTIN, FAST_BLINK);
+    })
+    .onError([](ota_error_t error) {
+        Serial.printf("Error[%u]: ", error);
+        if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+        else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+        else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+        else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+        else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    });
+    ArduinoOTA.begin();
+}
+
+void loop_metapixel(void * _){
+	ArtnetWiFiReceiver artnet;
+	artnet.begin();
+
+	delay(10);
+
+	while(running){
+		if(digitalRead(PIN_BTN)){
+			artnet.parse();
+		}else{
+			testMode();
+		}
+    vTaskDelay(0);
+	}
+    vTaskDelete(NULL);
+}
 
 void setup() {
 
@@ -125,23 +155,6 @@ void setup() {
   digitalWrite(LED_BUILTIN, LOW);
 }
 
-void loop_metapixel(void * _){
-	ArtnetWifi artnet;
-	artnet.begin();
-	artnet.setArtDmxCallback(onDmxFrame);
-
-	delay(10);
-
-	while(running){
-		if(digitalRead(PIN_BTN)){
-			artnet.read();
-		}else{
-			testMode();
-		}
-    vTaskDelay(0);
-	}
-    vTaskDelete(NULL);
-}
 
 int frame_count;
 
@@ -155,13 +168,6 @@ void onDmxFrame(uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* d
 	}
 }
 
-void testMode(){
-	for (int i = 0; i < NUM_CHANNEL; ++i)
-	{
-		ledcWrite(i, gamma28_8b_16b[(millis()/10)%200]);
-	}
-}
-
 void loop(){
   // wifi
   if(WiFi.status() != WL_CONNECTED){
@@ -171,27 +177,4 @@ void loop(){
   // OTA
   ArduinoOTA.handle();
   vTaskDelay(LOOP_INTERVAL);
-}
-
-
-void setupOTA(){
-    ArduinoOTA.setHostname(host);
-    ArduinoOTA.setPassword(OTA_PASS);
-    ArduinoOTA
-    .onStart([]() {
-    })
-    .onEnd([]() {
-    })
-    .onProgress([](unsigned int progress, unsigned int total) {
-        digitalWrite(LED_BUILTIN, FAST_BLINK);
-    })
-    .onError([](ota_error_t error) {
-        Serial.printf("Error[%u]: ", error);
-        if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-        else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-        else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-        else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-        else if (error == OTA_END_ERROR) Serial.println("End Failed");
-    });
-    ArduinoOTA.begin();
 }
