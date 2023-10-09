@@ -1,18 +1,43 @@
+#define WIFI_TIMEOUT_FOULE 10000
+#define WIFI_TIMEOUT_ENSAD 30000
+
+#define HEARTBEAT_LOW 1000
+#define HEARTBEAT_HIGH 5000
+
+#define SSID_FOULE "FOULE_LED"
+#define PSK_FOULE  "Bijahouix"
+
+#define SSID_ENSAD "ENSAD-LED"
+#define PSK_ENSAD  "Lmdpdeensadled"
+
+#define DEFAULT_UNIVERSE 1
+#define START_ADDR 1
+
 #include <Arduino.h>
+#include <Preferences.h>
+#define BAUDRATE 115200
+
 
 // Network stack
 #include <WiFi.h>
-#include <WiFiMulti.h>
 #include <ESPmDNS.h>
 #include <ArduinoOTA.h>
 #define OTA_PASS "hugo"
 
 char host[22];
-WiFiMulti wifiMulti;
 
-#define NUM_CHANNEL 9 
+// OSC
+#include <WiFiUdp.h>
+#include <OSCMessage.h>
+#include <OSCBundle.h>
+#include <OSCData.h>
+WiFiUDP udp;
 
-#define BAUDRATE 115200
+IPAddress broadcastAddress;
+#define OSC_OUT_PORT 2107
+#define OSC_IN_PORT  2108
+unsigned long next_heartbeat = 0;
+
 
 // App
 #include <ArtnetWifi.h>
@@ -23,9 +48,8 @@ WiFiMulti wifiMulti;
 #define PWM_RES_BITS 16
 #define INPUT_RES 255
 #define LOOP_INTERVAL 10  // global loop interval in ticks
+#define NUM_CHANNEL 9 
 
-#define START_UNIV 1
-#define START_ADDR 1
 
 bool running = true;
 
@@ -55,6 +79,36 @@ void testMode(){
 	}
 }
 
+void setupWiFi(){
+
+  long long now = millis();
+  WiFi.begin(SSID_FOULE, PSK_FOULE);
+
+  while(WiFi.status() != WL_CONNECTED or millis() < WIFI_TIMEOUT_FOULE + now){
+    vTaskDelay(LOOP_INTERVAL);
+  }
+
+  if(WiFi.status() == WL_CONNECTED){
+    return;
+    broadcastAddress = (WiFi.localIP() | ~WiFi.subnetMask());
+  }
+
+  WiFi.disconnect();
+  WiFi.begin(SSID_ENSAD, PSK_ENSAD);
+  now = millis();
+
+  while(WiFi.status() != WL_CONNECTED or millis() < WIFI_TIMEOUT_ENSAD + now){
+    vTaskDelay(LOOP_INTERVAL);
+  }
+
+  if(WiFi.status() == WL_CONNECTED){
+    return;
+    broadcastAddress = (WiFi.localIP() | ~WiFi.subnetMask());
+  }
+
+  ESP.restart();
+}
+
 void setupOTA(){
     ArduinoOTA.setHostname(host);
     ArduinoOTA.setPassword(OTA_PASS);
@@ -77,7 +131,13 @@ void setupOTA(){
     ArduinoOTA.begin();
 }
 
+// front end loop
 void loop_metapixel(void * _){
+
+  preferences.begin("MPX", false);
+  int universe =   preferences.getUInt("UNIV", DEFAULT_UNIVERSE);
+  int start_addr = preferences.getUInt("SADD", DEFAULT_UNIVERSE);
+
 	ArtnetWiFiReceiver artnet;
 	artnet.begin();
 
@@ -94,8 +154,17 @@ void loop_metapixel(void * _){
     vTaskDelete(NULL);
 }
 
-void setup() {
+void onDmxFrame(uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* data) {
+  ledcWrite(9, gamma28_8b_16b[frame_count]);
+  frame_count ++;
+  frame_count %= 256;
+	for (int i = 0; i < NUM_CHANNEL; ++i)
+	{
+		ledcWrite(i, gamma28_8b_16b[data[i]]);
+	}
+}
 
+void setup() {
 	pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, HIGH);
     
@@ -109,14 +178,12 @@ void setup() {
     reversed_mac |= ((mac >> (8 * i)) & 0xFF) << (8 * (5 - i));
   }
 
-  snprintf(host, 22, "METAPIX-%llX", reversed_mac);
+  snprintf(host, 22, "MPX-%llX", reversed_mac);
   Serial.println(host);
 
-  // Wi-Fi
-  WiFi.begin("FOULE_LED", "Bijahouix");
-
-  // OTA
+  setupWiFi();
   setupOTA();
+  udp.begin(OSC_IN_PORT);
 
 	ledcAttachPin(PIN_A_R, 0);
 	ledcAttachPin(PIN_A_G, 1);
@@ -155,26 +222,60 @@ void setup() {
   digitalWrite(LED_BUILTIN, LOW);
 }
 
-
 int frame_count;
 
-void onDmxFrame(uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* data) {
-  ledcWrite(9, gamma28_8b_16b[frame_count]);
-  frame_count ++;
-  frame_count %= 256;
-	for (int i = 0; i < NUM_CHANNEL; ++i)
-	{
-		ledcWrite(i, gamma28_8b_16b[data[i]]);
-	}
-}
-
+// backend loop
 void loop(){
   // wifi
   if(WiFi.status() != WL_CONNECTED){
     ledcWrite(9, gamma28_8b_16b[255]);
+    setupWiFi();
+    broadcastAddress = (WiFi.localIP() | ~WiFi.subnetMask());
   }
+
+  // OSC
+  handle_osc();
 
   // OTA
   ArduinoOTA.handle();
   vTaskDelay(LOOP_INTERVAL);
+}
+
+void send_heartbeat(){
+  OSCMessage msg("/heartbeat");
+  msg.add(host);
+  udp.beginPacket(broadcastAddress, OSC_OUT_PORT);
+  msg.send(osc_out_socket);
+  udp.endPacket();
+  msg.empty();
+}
+
+void handle_osc(){
+
+  if(millis() > next_heartbeat){
+    next_heartbeat = millis() + random(HEARTBEAT_LOW, HEARTBEAT_HIGH);
+    send_heartbeat();
+  }
+
+
+  OSCMessage message;
+  int size = udp.parsePacket();
+
+  if (size > 0) {
+    while (size--) {
+      message.fill(udp.read());
+    }
+    if (!message.hasError()) {
+      message.dispatch("/update_addr", update_addr);
+      message.dispatch("/update_univ", update_univ);
+      /*message.dispatch("/color_r", update_color_red);
+      message.dispatch("/color_g", update_color_green);
+      message.dispatch("/color_b", update_color_blue);
+      message.dispatch("/brightness",  update_bright);
+      message.dispatch("/restart",     osc_restart);
+      message.dispatch("/blackout",    osc_blackout);
+      message.dispatch("/whiteout",    osc_whiteout);
+      message.dispatch("/artnetout",   osc_arnetout);*/
+    }
+  }
 }
