@@ -15,11 +15,12 @@
 #define START_ADDR 1
 
 #include <Arduino.h>
+#include <esp_task_wdt.h>
 #include <Preferences.h>
 Preferences preferences;
 
 #define BAUDRATE 115200
-#define LOOP_INTERVAL 10  // global loop interval in ticks
+#define LOOP_INTERVAL 1  // global loop interval in ticks
 
 // Network stack
 #include <WiFi.h>
@@ -30,11 +31,8 @@ Preferences preferences;
 char host[22];
 
 // App
-#include <ArtnetWiFi.h>
-ArtnetWiFiReceiver artnet;
-
-#define FAST_BLINK (millis() % 200 < 50)
-#define HEARTBEAT ((millis() + 1000 )% 2000 < 50)
+#include <ArtnetWifi.h>
+ArtnetWifi artnet;
 
 uint16_t frame_count = 0;
 
@@ -104,57 +102,21 @@ void idleMode(){
     }
 }
 
-// front end loop
-void loop_metapixel(void * _){
-
-    ledcAttachPin(LED_BUILTIN, 9);
-    ledcSetup(9, PWM_FREQ, PWM_RES_BITS);
-
-	delay(10);
-
-	while(running){
-		artnet.parse();
-		/*if(digitalRead(PIN_BTN)){
-            switch(mode){
-                case MODE_IDLE:
-                    idleMode();
-                break;
-                case MODE_WHITE:
-                    whiteMode();
-                break;
-                case MODE_BLACK:
-                    blackMode();
-                break;
-                case MODE_ARTNET:
-                    // handled elsewhere
-                break;
-                default:
-                break;
-            }
-		}else{
-			testMode();
-		}*/
-        vTaskDelay(1);
-	}
-    vTaskDelete(NULL);
-}
-
-void on_artnet(uint8_t univ, const uint8_t* data, const uint16_t size){
+void on_artnet(uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* data){
 
     if(mode == MODE_ARTNET){
         uint16_t starts[3] =  {addr_a, addr_b, addr_c};
-        //uint16_t univs[3] =  {univ_a, univ_b, univ_c};
+        uint16_t univs[3] =  {univ_a, univ_b, univ_c};
 
-        for (int px = 0; px < 3; ++px)
-        {
-            for (int i = 0; i < 3; ++i)
-            {
-                setCalibratedChannel(
-                    (px*3)+i,
-                    data[starts[px]+i]
-                );
-             }
-            
+        for (int px = 0; px < 3; ++px){
+            if(universe == univs[px]){
+                for (int i = 0; i < 3; ++i){
+                    setCalibratedChannel(
+                        (px*3)+i,
+                        data[starts[px]+i]
+                    );
+                }
+            }
         }   
     }
 
@@ -162,6 +124,41 @@ void on_artnet(uint8_t univ, const uint8_t* data, const uint16_t size){
     frame_count ++;
     frame_count = frame_count % 25;
 }
+
+// front end loop
+void loop_metapixel(void * _){
+
+    ledcAttachPin(LED_BUILTIN, 9);
+    ledcSetup(9, PWM_FREQ, PWM_RES_BITS);
+
+    artnet.setArtDmxCallback(on_artnet);
+    artnet.begin();
+
+	delay(10);
+
+	while(running){
+		artnet.read();
+        switch(mode){
+            case MODE_IDLE:
+                idleMode();
+            break;
+            case MODE_WHITE:
+                whiteMode();
+            break;
+            case MODE_BLACK:
+                blackMode();
+            break;
+            case MODE_ARTNET:
+                // handled elsewhere
+            break;
+            default:
+            break;
+        }
+        esp_task_wdt_reset();
+	}
+    vTaskDelete(NULL);
+}
+
 
 
 void setup() {
@@ -197,42 +194,12 @@ void setup() {
 
     brightness = (uint32_t)preferences.getUInt("brightness", brightness);
 
-    artnet.begin();
-
-    artnet.subscribe(univ_a,
-        [&](const uint8_t* data, const uint16_t size) {on_artnet(univ_a, data, size);});
-    /*artnet.subscribe(univ_b,
-        [&](const uint8_t* data, const uint16_t size) {on_artnet(univ_b, data, size);});
-    artnet.subscribe(univ_c,
-        [&](const uint8_t* data, const uint16_t size) {on_artnet(univ_c, data, size);});
-*/
     OscWiFi.subscribe(OSC_IN_PORT, "/addresses", addr_a, addr_b, addr_c);
+    OscWiFi.subscribe(OSC_IN_PORT, "/universes", univ_a, univ_b, univ_c);
     OscWiFi.subscribe(OSC_IN_PORT, "/calibration", colormult_r, colormult_g, colormult_b);
     OscWiFi.subscribe(OSC_IN_PORT, "/brightness", brightness);
     OscWiFi.subscribe(OSC_IN_PORT, "/mode", mode);
     OscWiFi.subscribe(OSC_IN_PORT, "/master", master);
-    
-    OscWiFi.subscribe(OSC_IN_PORT, "/universes",
-        [&](
-            const int& _univ_a,
-            const int& _univ_b,
-            const int& _univ_c
-            ) {
-
-            univ_a = _univ_a;
-            univ_b = _univ_b;
-            univ_c = _univ_c;
-
-            artnet.unsubscribe();
-
-            artnet.subscribe(univ_a,
-                [&](const uint8_t* data, const uint16_t size) {on_artnet(univ_a, data, size);});
-            artnet.subscribe(univ_b,
-                [&](const uint8_t* data, const uint16_t size) {on_artnet(univ_b, data, size);});
-            artnet.subscribe(univ_c,
-                [&](const uint8_t* data, const uint16_t size) {on_artnet(univ_c, data, size);});
-
-        });
 
     OscWiFi.subscribe(OSC_IN_PORT, "/save", [](){
         preferences.putUInt("univ_a", univ_a);

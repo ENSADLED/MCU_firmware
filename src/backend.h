@@ -23,7 +23,6 @@ void setupOTA(){
     .onEnd([]() {
     })
     .onProgress([](unsigned int progress, unsigned int total) {
-        digitalWrite(LED_BUILTIN, FAST_BLINK);
     })
     .onError([](ota_error_t error) {
         Serial.printf("Error[%u]: ", error);
