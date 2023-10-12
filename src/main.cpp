@@ -29,7 +29,7 @@ Preferences preferences;
 char host[22];
 
 // App
-#include <ArtnetWifi.h>
+#include <ArtnetWiFi.h>
 ArtnetWiFiReceiver artnet;
 
 #define FAST_BLINK (millis() % 200 < 50)
