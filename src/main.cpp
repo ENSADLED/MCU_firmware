@@ -89,7 +89,15 @@ void on_artnet(uint8_t pixel, const uint8_t* data, const uint16_t size){
     uint16_t starts[3] =  {addr_a, addr_b, addr_c};
     for (int i = 0; i < 3; ++i)
     {
-        ledcWrite((pixel*3)+i, gamma28_8b_16b[data[starts[pixel]+i]]);
+        ledcWrite((pixel*3)+i, 
+            static_cast<uint16_t>(
+                (
+                    static_cast<uint64_t>(gamma28_8b_16b[data[starts[pixel]+i]]) *
+                    static_cast<uint64_t>(brightness)
+                ) /
+                static_cast<uint64_t>(65535ULL)
+            )
+        );
     }
 
     ledcWrite(9, gamma28_8b_16b[frame_count*10]);
