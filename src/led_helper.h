@@ -24,16 +24,16 @@ const uint16_t PROGMEM gamma28_8b_16b[] = {
       55303,55951,56604,57261,57923,58590,59262,59939,60621,61308,62000,62697,63399,64106,64818,65535
 };
 
-void setupLED(){     
-      ledcAttachPin(PIN_A_R, 0);
-      ledcAttachPin(PIN_A_G, 1);
-      ledcAttachPin(PIN_A_B, 2);
-      ledcAttachPin(PIN_B_R, 3);
-      ledcAttachPin(PIN_B_G, 4);
-      ledcAttachPin(PIN_B_B, 5);
-      ledcAttachPin(PIN_C_R, 6);
-      ledcAttachPin(PIN_C_G, 7);
-      ledcAttachPin(PIN_C_B, 8);
+void setupLED(){  
+      pinMode(PIN_A_R, OUTPUT);
+      pinMode(PIN_A_G, OUTPUT);
+      pinMode(PIN_A_B, OUTPUT);
+      pinMode(PIN_B_R, OUTPUT);
+      pinMode(PIN_B_G, OUTPUT);
+      pinMode(PIN_B_B, OUTPUT);
+      pinMode(PIN_C_R, OUTPUT);
+      pinMode(PIN_C_G, OUTPUT);
+      pinMode(PIN_C_B, OUTPUT);
 
       ledcSetup(0, PWM_FREQ, PWM_RES_BITS);
       ledcSetup(1, PWM_FREQ, PWM_RES_BITS);
@@ -44,4 +44,14 @@ void setupLED(){
       ledcSetup(6, PWM_FREQ, PWM_RES_BITS);
       ledcSetup(7, PWM_FREQ, PWM_RES_BITS);
       ledcSetup(8, PWM_FREQ, PWM_RES_BITS);  
+      
+      ledcAttachPin(PIN_A_R, 0);
+      ledcAttachPin(PIN_A_G, 1);
+      ledcAttachPin(PIN_A_B, 2);
+      ledcAttachPin(PIN_B_R, 3);
+      ledcAttachPin(PIN_B_G, 4);
+      ledcAttachPin(PIN_B_B, 5);
+      ledcAttachPin(PIN_C_R, 6);
+      ledcAttachPin(PIN_C_G, 7);
+      ledcAttachPin(PIN_C_B, 8);
 }

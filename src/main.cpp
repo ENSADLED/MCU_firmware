@@ -1,3 +1,4 @@
+
 #define WIFI_TIMEOUT_FOULE 10000
 #define WIFI_TIMEOUT_ENSAD 30000
 
@@ -85,19 +86,27 @@ void loop_metapixel(void * _){
 }
 
 
-void on_artnet(uint8_t pixel, const uint8_t* data, const uint16_t size){
+void on_artnet(uint8_t univ, const uint8_t* data, const uint16_t size){
+
     uint16_t starts[3] =  {addr_a, addr_b, addr_c};
-    for (int i = 0; i < 3; ++i)
+    uint16_t univs[3] =  {univ_a, univ_b, univ_c};
+
+    for (int px = 0; px < 3; ++px)
     {
-        ledcWrite((pixel*3)+i, 
-            static_cast<uint16_t>(
-                (
-                    static_cast<uint64_t>(gamma28_8b_16b[data[starts[pixel]+i]]) *
-                    static_cast<uint64_t>(brightness)
-                ) /
-                static_cast<uint64_t>(65535ULL)
-            )
-        );
+        if(univ == univs[px]){
+            for (int i = 0; i < 3; ++i)
+            {
+                ledcWrite((px*3)+i, 
+                    static_cast<uint16_t>(
+                        (
+                            static_cast<uint64_t>(gamma28_8b_16b[data[starts[px]+i]]) *
+                            static_cast<uint64_t>(brightness)
+                        ) /
+                        static_cast<uint64_t>(65535ULL)
+                    )
+                );
+            }
+        }
     }
 
     ledcWrite(9, gamma28_8b_16b[frame_count*10]);
@@ -142,11 +151,11 @@ void setup() {
     artnet.begin();
 
     artnet.subscribe(univ_a,
-        [&](const uint8_t* data, const uint16_t size) {on_artnet(0, data, size);});
+        [&](const uint8_t* data, const uint16_t size) {on_artnet(univ_a, data, size);});
     artnet.subscribe(univ_b,
-        [&](const uint8_t* data, const uint16_t size) {on_artnet(1, data, size);});
+        [&](const uint8_t* data, const uint16_t size) {on_artnet(univ_b, data, size);});
     artnet.subscribe(univ_c,
-        [&](const uint8_t* data, const uint16_t size) {on_artnet(2, data, size);});
+        [&](const uint8_t* data, const uint16_t size) {on_artnet(univ_c, data, size);});
 
     OscWiFi.subscribe(OSC_IN_PORT, "/addresses", addr_a, addr_b, addr_c);
     OscWiFi.subscribe(OSC_IN_PORT, "/calibration", colormult_r, colormult_g, colormult_b);
@@ -166,11 +175,11 @@ void setup() {
             artnet.unsubscribe();
 
             artnet.subscribe(univ_a,
-                [&](const uint8_t* data, const uint16_t size) {on_artnet(0, data, size);});
+                [&](const uint8_t* data, const uint16_t size) {on_artnet(univ_a, data, size);});
             artnet.subscribe(univ_b,
-                [&](const uint8_t* data, const uint16_t size) {on_artnet(1, data, size);});
+                [&](const uint8_t* data, const uint16_t size) {on_artnet(univ_b, data, size);});
             artnet.subscribe(univ_c,
-                [&](const uint8_t* data, const uint16_t size) {on_artnet(2, data, size);});
+                [&](const uint8_t* data, const uint16_t size) {on_artnet(univ_c, data, size);});
 
         });
 
