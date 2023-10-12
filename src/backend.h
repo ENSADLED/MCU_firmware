@@ -2,6 +2,11 @@
 #include <WiFiUdp.h>
 #include <ArduinoOSCWiFi.h>
 
+#define MODE_ARTNET 0
+#define MODE_WHITE 1
+#define MODE_BLACK 2
+#define MODE_IDLE 3
+
 WiFiUDP udp;
 
 IPAddress broadcastAddress;
@@ -64,7 +69,23 @@ void setupWiFi(){
 }
 
 void send_heartbeat(){
-  OscWiFi.send(broadcastAddress.toString(), OSC_OUT_PORT, "/heartbeat", String(host), WiFi.localIP().toString(), String(VERSION));
+    String status = String(WiFi.RSSI());
+   /* StaticJsonDocument<192> doc;
+    doc["ua"] = univ_a;
+    doc["ub"] = univ_b;
+    doc["uc"] = univ_c;
+    doc["aa"] = addr_a;
+    doc["ab"] = addr_b;
+    doc["ac"] = addr_c;
+    doc["cmr"] = colormult_r;
+    doc["cmg"] = colormult_g;
+    doc["cmb"] = colormult_b;
+    doc["bn"] = brightness;
+    doc["md"] = mode;
+    doc["wf"] = WiFi.RSSI();
+
+    serializeJson(doc, output);*/
+    OscWiFi.send(broadcastAddress.toString(), OSC_OUT_PORT, "/heartbeat", String(host), WiFi.localIP().toString(), String(VERSION), status);
 }
 
 void handle_osc(){

@@ -52,22 +52,60 @@ uint32_t colormult_b = 65535;
 
 uint32_t brightness = 32768;
 
+uint32_t master = 65535;
+
 #include "backend.h"
 #include "led_helper.h"
 
 bool running = true;
+uint8_t mode = MODE_ARTNET;
+
+
+uint16_t safe16bScale(uint16_t value, uint16_t new_max){
+    return static_cast<uint16_t>(
+        (
+            static_cast<uint64_t>(value) *
+            static_cast<uint64_t>(new_max)
+        ) /
+        static_cast<uint64_t>(65535ULL)
+    );   
+}
+
+void setCalibratedChannel(uint8_t channel, uint8_t value){
+    //uint16_t colormults[3] = {colormult_r, colormult_g, colormult_b};
+    uint16_t output = gamma28_8b_16b[value];
+    //output = safe16bScale(output, colormults[channel%3]);
+    //output = safe16bScale(output, brightness);
+    //output = safe16bScale(output, master);
+    ledcWrite(channel, output);
+}
 
 void testMode(){
+    for (int i = 0; i < NUM_CHANNEL; ++i){
+        ledcWrite(i, gamma28_8b_16b[(millis()/10)%200]);
+    }
+}
 
-	for (int i = 0; i < NUM_CHANNEL; ++i)
-	{
-		ledcWrite(i, gamma28_8b_16b[(millis()/10)%200]);
-	}
+void whiteMode(){
+    for (int i = 0; i < NUM_CHANNEL; ++i){
+        setCalibratedChannel(i, 255);
+    }
+}
+
+void blackMode(){
+    for (int i = 0; i < NUM_CHANNEL; ++i){
+        setCalibratedChannel(i, 0);
+    }
+}
+
+void idleMode(){
+    for (int i = 0; i < NUM_CHANNEL; ++i){
+        setCalibratedChannel(i, 10);
+    }
 }
 
 // front end loop
 void loop_metapixel(void * _){
-
 
     ledcAttachPin(LED_BUILTIN, 9);
     ledcSetup(9, PWM_FREQ, PWM_RES_BITS);
@@ -75,38 +113,49 @@ void loop_metapixel(void * _){
 	delay(10);
 
 	while(running){
-		if(digitalRead(PIN_BTN)){
-			artnet.parse();
+		artnet.parse();
+		/*if(digitalRead(PIN_BTN)){
+            switch(mode){
+                case MODE_IDLE:
+                    idleMode();
+                break;
+                case MODE_WHITE:
+                    whiteMode();
+                break;
+                case MODE_BLACK:
+                    blackMode();
+                break;
+                case MODE_ARTNET:
+                    // handled elsewhere
+                break;
+                default:
+                break;
+            }
 		}else{
 			testMode();
-		}
-    vTaskDelay(1);
+		}*/
+        vTaskDelay(1);
 	}
     vTaskDelete(NULL);
 }
 
-
 void on_artnet(uint8_t univ, const uint8_t* data, const uint16_t size){
 
-    uint16_t starts[3] =  {addr_a, addr_b, addr_c};
-    uint16_t univs[3] =  {univ_a, univ_b, univ_c};
+    if(mode == MODE_ARTNET){
+        uint16_t starts[3] =  {addr_a, addr_b, addr_c};
+        //uint16_t univs[3] =  {univ_a, univ_b, univ_c};
 
-    for (int px = 0; px < 3; ++px)
-    {
-        if(univ == univs[px]){
+        for (int px = 0; px < 3; ++px)
+        {
             for (int i = 0; i < 3; ++i)
             {
-                ledcWrite((px*3)+i, 
-                    static_cast<uint16_t>(
-                        (
-                            static_cast<uint64_t>(gamma28_8b_16b[data[starts[px]+i]]) *
-                            static_cast<uint64_t>(brightness)
-                        ) /
-                        static_cast<uint64_t>(65535ULL)
-                    )
+                setCalibratedChannel(
+                    (px*3)+i,
+                    data[starts[px]+i]
                 );
-            }
-        }
+             }
+            
+        }   
     }
 
     ledcWrite(9, gamma28_8b_16b[frame_count*10]);
@@ -152,14 +201,16 @@ void setup() {
 
     artnet.subscribe(univ_a,
         [&](const uint8_t* data, const uint16_t size) {on_artnet(univ_a, data, size);});
-    artnet.subscribe(univ_b,
+    /*artnet.subscribe(univ_b,
         [&](const uint8_t* data, const uint16_t size) {on_artnet(univ_b, data, size);});
     artnet.subscribe(univ_c,
         [&](const uint8_t* data, const uint16_t size) {on_artnet(univ_c, data, size);});
-
+*/
     OscWiFi.subscribe(OSC_IN_PORT, "/addresses", addr_a, addr_b, addr_c);
     OscWiFi.subscribe(OSC_IN_PORT, "/calibration", colormult_r, colormult_g, colormult_b);
     OscWiFi.subscribe(OSC_IN_PORT, "/brightness", brightness);
+    OscWiFi.subscribe(OSC_IN_PORT, "/mode", mode);
+    OscWiFi.subscribe(OSC_IN_PORT, "/master", master);
     
     OscWiFi.subscribe(OSC_IN_PORT, "/universes",
         [&](
