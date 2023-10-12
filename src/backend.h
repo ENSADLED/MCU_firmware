@@ -64,7 +64,7 @@ void setupWiFi(){
 }
 
 void send_heartbeat(){
-  OscWiFi.send(broadcastAddress.toString(), OSC_OUT_PORT, "/heartbeat", String(host), WiFi.localIP().toString());
+  OscWiFi.send(broadcastAddress.toString(), OSC_OUT_PORT, "/heartbeat", String(host), WiFi.localIP().toString(), String(VERSION));
 }
 
 void handle_osc(){
