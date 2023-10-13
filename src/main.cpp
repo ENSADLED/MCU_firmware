@@ -237,6 +237,7 @@ void setup() {
     delay(400);
     Serial.println(host);
     Serial.println(broadcastAddress);
+    Serial.println(VERSION_STRING);
 }
 
 // backend loop

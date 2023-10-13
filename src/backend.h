@@ -1,3 +1,9 @@
+#define STR1(x)  #x
+#define STR(x)  STR1(x)
+#define VERSION_STRING STR(VERSION)
+#pragma message "version: " STR(VERSION)
+
+
 // OSC
 #include <WiFiUdp.h>
 #include <ArduinoOSCWiFi.h>
@@ -84,7 +90,7 @@ void send_heartbeat(){
     doc["wf"] = WiFi.RSSI();
 
     serializeJson(doc, output);*/
-    OscWiFi.send(broadcastAddress.toString(), OSC_OUT_PORT, "/heartbeat", String(host), WiFi.localIP().toString(), String(VERSION), status);
+    OscWiFi.send(broadcastAddress.toString(), OSC_OUT_PORT, "/heartbeat", String(host), WiFi.localIP().toString(), String(VERSION_STRING), status);
 }
 
 void handle_osc(){
