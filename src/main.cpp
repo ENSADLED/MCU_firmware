@@ -154,7 +154,8 @@ void loop_metapixel(void * _){
             default:
             break;
         }
-        esp_task_wdt_reset();
+        taskYIELD();
+        /*esp_task_wdt_reset();*/
 	}
     vTaskDelete(NULL);
 }
