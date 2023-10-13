@@ -52,30 +52,51 @@ uint32_t brightness = 32768;
 
 uint32_t master = 65535;
 
+
 #include "backend.h"
 #include "led_helper.h"
 
 bool running = true;
 uint8_t mode = MODE_ARTNET;
 
+#define BUFFER_MAX_SIZE 64
 
-uint16_t safe16bScale(uint16_t value, uint16_t new_max){
-    return static_cast<uint16_t>(
-        (
-            static_cast<uint64_t>(value) *
-            static_cast<uint64_t>(new_max)
-        ) /
-        static_cast<uint64_t>(65535ULL)
-    );   
+uint8_t buffer [BUFFER_MAX_SIZE][NUM_CHANNEL];
+uint8_t buffer_size = BUFFER_MAX_SIZE;
+uint8_t framerate = 25;
+
+int8_t  curs_in  = 0;
+int8_t  curs_out = 0;
+
+uint32_t next_out = 0;
+
+void loop_out(void * _){
+    bool stopped = true;
+
+    while(true){
+        if(millis() >= next_out){
+            next_out = millis() + 1000/framerate;
+            if(curs_in - curs_out == 0){
+                stopped = true;
+            }else if(stopped){
+                if(abs(curs_in - curs_out) >= 2){
+                    stopped = false;
+                }
+            }else if(!stopped){
+                curs_out ++;
+                curs_out = curs_out % buffer_size;
+                for (int i = 0; i < NUM_CHANNEL; ++i){
+                    setCalibratedChannel(i, buffer[curs_out][i]);
+                }
+            }
+        }
+        vTaskDelay(1);
+    }
+    vTaskDelete(NULL);
 }
 
-void setCalibratedChannel(uint8_t channel, uint8_t value){
-    //uint16_t colormults[3] = {colormult_r, colormult_g, colormult_b};
-    uint16_t output = gamma28_8b_16b[value];
-    //output = safe16bScale(output, colormults[channel%3]);
-    //output = safe16bScale(output, brightness);
-    //output = safe16bScale(output, master);
-    ledcWrite(channel, output);
+void out_sync(){
+    next_out = 0;
 }
 
 void testMode(){
@@ -102,6 +123,14 @@ void idleMode(){
     }
 }
 
+void fill_in(uint8_t channel, uint8_t value){
+    if(channel == 0){
+        curs_in ++;
+        curs_in = curs_in % buffer_size;
+    }
+    buffer[curs_in][channel] = value;
+}
+
 void on_artnet(uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* data){
 
     if(mode == MODE_ARTNET){
@@ -111,7 +140,7 @@ void on_artnet(uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* da
         for (int px = 0; px < 3; ++px){
             if(universe == univs[px]){
                 for (int i = 0; i < 3; ++i){
-                    setCalibratedChannel(
+                    fill_in(
                         (px*3)+i,
                         data[starts[px]+i]
                     );
@@ -161,7 +190,56 @@ void loop_metapixel(void * _){
     vTaskDelete(NULL);
 }
 
+void setupOSC(){
+    univ_a = preferences.getUInt("univ_a", univ_a);
+    univ_b = preferences.getUInt("univ_b", univ_b);
+    univ_c = preferences.getUInt("univ_c", univ_c);
 
+    addr_a = preferences.getUInt("addr_a", addr_a);
+    addr_b = preferences.getUInt("addr_b", addr_b);
+    addr_c = preferences.getUInt("addr_c", addr_c);
+
+    colormult_r = (uint32_t)preferences.getUInt("colormult_r", colormult_r);
+    colormult_g = (uint32_t)preferences.getUInt("colormult_g", colormult_g);
+    colormult_b = (uint32_t)preferences.getUInt("colormult_b", colormult_b);
+
+    brightness = (uint32_t)preferences.getUInt("brightness", brightness);
+    framerate = (uint8_t)preferences.getUInt("framerate", framerate);
+    buffer_size = (uint8_t)preferences.getUInt("buffer_size", buffer_size);
+
+    OscWiFi.subscribe(OSC_IN_PORT, "/addresses", addr_a, addr_b, addr_c);
+    OscWiFi.subscribe(OSC_IN_PORT, "/universes", univ_a, univ_b, univ_c);
+    OscWiFi.subscribe(OSC_IN_PORT, "/calibration", colormult_r, colormult_g, colormult_b);
+    OscWiFi.subscribe(OSC_IN_PORT, "/brightness", brightness);
+    OscWiFi.subscribe(OSC_IN_PORT, "/mode", mode);
+    OscWiFi.subscribe(OSC_IN_PORT, "/master", master);
+
+    OscWiFi.subscribe(OSC_IN_PORT, "/buffer_size", buffer_size);
+    OscWiFi.subscribe(OSC_IN_PORT, "/framerate", framerate);
+
+    OscWiFi.subscribe(OSC_IN_PORT, "/sync", [](){
+        out_sync();
+    });
+
+    OscWiFi.subscribe(OSC_IN_PORT, "/save", [](){
+        preferences.putUInt("univ_a", univ_a);
+        preferences.putUInt("univ_b", univ_b);
+        preferences.putUInt("univ_c", univ_c);
+
+        preferences.putUInt("addr_a", addr_a);
+        preferences.putUInt("addr_b", addr_b);
+        preferences.putUInt("addr_c", addr_c);
+
+        preferences.putUInt("colormult_r", (uint16_t)colormult_r);
+        preferences.putUInt("colormult_g", (uint16_t)colormult_g);
+        preferences.putUInt("colormult_b", (uint16_t)colormult_b);
+
+        preferences.putUInt("brightness", (uint16_t)brightness);
+
+        preferences.putUInt("framerate", (uint16_t)framerate);
+        preferences.putUInt("buffer_size", (uint16_t)buffer_size);
+    });
+}
 
 void setup() {
 	pinMode(LED_BUILTIN, OUTPUT);
@@ -188,57 +266,32 @@ void setup() {
     setupOTA();
     setupLED();
 
-    univ_a = preferences.getUInt("univ_a", univ_a);
-    univ_b = preferences.getUInt("univ_b", univ_b);
-    univ_c = preferences.getUInt("univ_c", univ_c);
-
-    addr_a = preferences.getUInt("addr_a", addr_a);
-    addr_b = preferences.getUInt("addr_b", addr_b);
-    addr_c = preferences.getUInt("addr_c", addr_c);
-
-    colormult_r = (uint32_t)preferences.getUInt("colormult_r", colormult_r);
-    colormult_g = (uint32_t)preferences.getUInt("colormult_g", colormult_g);
-    colormult_b = (uint32_t)preferences.getUInt("colormult_b", colormult_b);
-
-    brightness = (uint32_t)preferences.getUInt("brightness", brightness);
-
-    OscWiFi.subscribe(OSC_IN_PORT, "/addresses", addr_a, addr_b, addr_c);
-    OscWiFi.subscribe(OSC_IN_PORT, "/universes", univ_a, univ_b, univ_c);
-    OscWiFi.subscribe(OSC_IN_PORT, "/calibration", colormult_r, colormult_g, colormult_b);
-    OscWiFi.subscribe(OSC_IN_PORT, "/brightness", brightness);
-    OscWiFi.subscribe(OSC_IN_PORT, "/mode", mode);
-    OscWiFi.subscribe(OSC_IN_PORT, "/master", master);
-
-    OscWiFi.subscribe(OSC_IN_PORT, "/save", [](){
-        preferences.putUInt("univ_a", univ_a);
-        preferences.putUInt("univ_b", univ_b);
-        preferences.putUInt("univ_c", univ_c);
-
-        preferences.putUInt("addr_a", addr_a);
-        preferences.putUInt("addr_b", addr_b);
-        preferences.putUInt("addr_c", addr_c);
-
-        preferences.putUInt("colormult_r", (uint16_t)colormult_r);
-        preferences.putUInt("colormult_g", (uint16_t)colormult_g);
-        preferences.putUInt("colormult_b", (uint16_t)colormult_b);
-
-        preferences.putUInt("brightness", (uint16_t)brightness);
-    });
+    setupOSC();
 
     xTaskCreatePinnedToCore(
-        loop_metapixel,     // Function that should be called
-        "Metapixel",    // Name of the task (for debugging)
-        20000,           // Stack size (bytes)
-        NULL,            // Parameter to pass
-        1,               // Task priority
-        NULL,            // Task handle
-        !xPortGetCoreID()// pin to not the one running this
+        loop_metapixel,   // Function that should be called
+        "Metapixel",      // Name of the task (for debugging)
+        20000,            // Stack size (bytes)
+        NULL,             // Parameter to pass
+        1,                // Task priority
+        NULL,             // Task handle
+        !xPortGetCoreID() // pin to not the one running this
+    );
+
+    xTaskCreatePinnedToCore(
+        loop_out,         // Function that should be called
+        "Out",            // Name of the task (for debugging)
+        20000,            // Stack size (bytes)
+        NULL,             // Parameter to pass
+        10,               // Task priority
+        NULL,             // Task handle
+        !xPortGetCoreID() // pin to not the one running this
     );
 
     delay(10);
 
     digitalWrite(LED_BUILTIN, LOW);
-    
+
     Serial.println(broadcastAddress);
 }
 
@@ -258,3 +311,4 @@ void loop(){
   ArduinoOTA.handle();
   vTaskDelay(LOOP_INTERVAL);
 }
+

@@ -24,6 +24,26 @@ const uint16_t PROGMEM gamma28_8b_16b[] = {
       55303,55951,56604,57261,57923,58590,59262,59939,60621,61308,62000,62697,63399,64106,64818,65535
 };
 
+
+uint16_t safe16bScale(uint16_t value, uint16_t new_max){
+    return static_cast<uint16_t>(
+        (
+            static_cast<uint64_t>(value) *
+            static_cast<uint64_t>(new_max)
+        ) /
+        static_cast<uint64_t>(65535ULL)
+    );   
+}
+
+void setCalibratedChannel(uint8_t channel, uint8_t value){
+    //uint16_t colormults[3] = {colormult_r, colormult_g, colormult_b};
+    uint16_t output = gamma28_8b_16b[value];
+    //output = safe16bScale(output, colormults[channel%3]);
+    //output = safe16bScale(output, brightness);
+    //output = safe16bScale(output, master);
+    ledcWrite(channel, output);
+}
+
 void setupLED(){  
       pinMode(PIN_A_R, OUTPUT);
       pinMode(PIN_A_G, OUTPUT);
