@@ -59,7 +59,7 @@ uint32_t master = 65535;
 bool running = true;
 uint8_t mode = MODE_ARTNET;
 
-#define BUFFER_MAX_SIZE 16
+#define BUFFER_MAX_SIZE 32
 
 uint8_t buffer [BUFFER_MAX_SIZE][NUM_CHANNEL];
 uint8_t buffer_size = BUFFER_MAX_SIZE;
@@ -77,7 +77,7 @@ void loop_out(void * _){
         if(millis() >= next_out){
             next_out = millis() + 1000/framerate;
             if(curs_in - curs_out == 0){
-                //stopped = true;
+                stopped = true;
             }else if(stopped){
                 if(abs(curs_in - curs_out) >= buffer_size / 2){
                     stopped = false;
