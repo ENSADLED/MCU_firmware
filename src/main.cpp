@@ -79,7 +79,7 @@ void loop_out(void * _){
             if(curs_in - curs_out == 0){
                 stopped = true;
             }else if(stopped){
-                if(abs(curs_in - curs_out) >= 2){
+                if(abs(curs_in - curs_out) >= buffer_size - 2){
                     stopped = false;
                 }
             }else if(!stopped){
@@ -166,7 +166,9 @@ void loop_metapixel(void * _){
 	delay(10);
 
 	while(running){
-		artnet.read();
+		if(artnet.read() == ART_SYNC){
+            Serial.println("sync");
+        }
         switch(mode){
             case MODE_IDLE:
                 idleMode();
