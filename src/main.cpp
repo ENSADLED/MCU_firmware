@@ -178,6 +178,12 @@ void setup() {
 
     snprintf(host, 22, "MPX-%llX", reversed_mac);
 
+    delay(100);
+    Serial.begin(BAUDRATE);
+    delay(400);
+    Serial.println(host);
+    Serial.println(VERSION_STRING);
+
     setupWiFi();
     setupOTA();
     setupLED();
@@ -232,13 +238,8 @@ void setup() {
     delay(10);
 
     digitalWrite(LED_BUILTIN, LOW);
-
-    delay(100);
-    Serial.begin(BAUDRATE);
-    delay(400);
-    Serial.println(host);
+    
     Serial.println(broadcastAddress);
-    Serial.println(VERSION_STRING);
 }
 
 // backend loop
