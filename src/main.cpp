@@ -77,7 +77,7 @@ void loop_out(void * _){
         if(millis() >= next_out){
             next_out = millis() + 1000/framerate;
             if(curs_in - curs_out == 0){
-                stopped = true;
+                //stopped = true;
             }else if(stopped){
                 if(abs(curs_in - curs_out) >= buffer_size / 2){
                     stopped = false;
