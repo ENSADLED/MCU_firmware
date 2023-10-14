@@ -200,6 +200,10 @@ void setupOSC(){
         out_sync();
     });
 
+    OscWiFi.subscribe(OSC_IN_PORT, "/restart", [](){
+        ESP.restart();
+    });
+
     OscWiFi.subscribe(OSC_IN_PORT, "/save", [](){
         preferences.putUInt("univ_a", univ_a);
         preferences.putUInt("univ_b", univ_b);
