@@ -40,7 +40,7 @@ void setCalibratedChannel(uint8_t channel, uint8_t value){
     uint16_t output = gamma28_8b_16b[value];
     //output = safe16bScale(output, colormults[channel%3]);
     //output = safe16bScale(output, brightness);
-    //output = safe16bScale(output, master);
+    output = safe16bScale(output, master);
     ledcWrite(channel, output);
 }
 
