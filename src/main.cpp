@@ -59,35 +59,18 @@ uint32_t master = 65535;
 bool running = true;
 uint8_t mode = MODE_ARTNET;
 
-#define BUFFER_MAX_SIZE 32
 
-uint8_t buffer [BUFFER_MAX_SIZE][NUM_CHANNEL];
-uint8_t buffer_size = BUFFER_MAX_SIZE;
+
+uint8_t buffer [NUM_CHANNEL];
 uint8_t framerate = 25;
-
-int8_t  curs_in  = 0;
-int8_t  curs_out = 0;
-
 uint32_t next_out = 0;
 
 void loop_out(void * _){
-    bool stopped = true;
-
     while(true){
         if(millis() >= next_out){
             next_out = millis() + 1000/framerate;
-            if(curs_in - curs_out == 0){
-                stopped = true;
-            }else if(stopped){
-                if(abs(curs_in - curs_out) >= buffer_size / 2){
-                    stopped = false;
-                }
-            }else if(!stopped){
-                curs_out ++;
-                curs_out = curs_out % buffer_size;
-                for (int i = 0; i < NUM_CHANNEL; ++i){
-                    setCalibratedChannel(i, buffer[curs_out][i]);
-                }
+            for (int i = 0; i < NUM_CHANNEL; ++i){
+                setCalibratedChannel(i, buffer[i]);
             }
         }
         vTaskDelay(1);
@@ -124,11 +107,7 @@ void idleMode(){
 }
 
 void fill_in(uint8_t channel, uint8_t value){
-    if(channel == 0){
-        curs_in ++;
-        curs_in = curs_in % buffer_size;
-    }
-    buffer[curs_in][channel] = value;
+    buffer[channel] = value;
 }
 
 void on_artnet(uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* data){
@@ -207,7 +186,6 @@ void setupOSC(){
 
     brightness = (uint32_t)preferences.getUInt("brightness", brightness);
     framerate = (uint8_t)preferences.getUInt("framerate", framerate);
-    buffer_size = (uint8_t)preferences.getUInt("buffer_size", buffer_size);
 
     OscWiFi.subscribe(OSC_IN_PORT, "/addresses", addr_a, addr_b, addr_c);
     OscWiFi.subscribe(OSC_IN_PORT, "/universes", univ_a, univ_b, univ_c);
@@ -216,7 +194,6 @@ void setupOSC(){
     OscWiFi.subscribe(OSC_IN_PORT, "/mode", mode);
     OscWiFi.subscribe(OSC_IN_PORT, "/master", master);
 
-    OscWiFi.subscribe(OSC_IN_PORT, "/buffer_size", buffer_size);
     OscWiFi.subscribe(OSC_IN_PORT, "/framerate", framerate);
 
     OscWiFi.subscribe(OSC_IN_PORT, "/sync", [](){
@@ -239,7 +216,6 @@ void setupOSC(){
         preferences.putUInt("brightness", (uint16_t)brightness);
 
         preferences.putUInt("framerate", (uint16_t)framerate);
-        preferences.putUInt("buffer_size", (uint16_t)buffer_size);
     });
 }
 
