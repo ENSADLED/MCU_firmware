@@ -52,6 +52,7 @@ uint32_t brightness = 32768;
 
 uint32_t master = 65535;
 
+uint8_t framerate = 25;
 
 #include "backend.h"
 #include "led_helper.h"
@@ -62,7 +63,6 @@ uint8_t mode = MODE_ARTNET;
 
 
 uint8_t buffer [NUM_CHANNEL];
-uint8_t framerate = 25;
 uint32_t next_out = 0;
 
 void loop_out(void * _){

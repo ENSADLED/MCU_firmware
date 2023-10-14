@@ -75,21 +75,20 @@ void setupWiFi(){
 
 void send_heartbeat(){
     String status = String(WiFi.RSSI());
-   /* StaticJsonDocument<192> doc;
-    doc["ua"] = univ_a;
-    doc["ub"] = univ_b;
-    doc["uc"] = univ_c;
-    doc["aa"] = addr_a;
-    doc["ab"] = addr_b;
-    doc["ac"] = addr_c;
-    doc["cmr"] = colormult_r;
-    doc["cmg"] = colormult_g;
-    doc["cmb"] = colormult_b;
-    doc["bn"] = brightness;
-    doc["md"] = mode;
-    doc["wf"] = WiFi.RSSI();
-
-    serializeJson(doc, output);*/
+    status += " / U:";
+    status += String(univ_a);
+    status += " A";
+    status += String(addr_a);
+    status += " B";
+    status += String(addr_b);
+    status += " C";
+    status += String(addr_c);
+    status += " / ";
+    status += String(framerate);
+    status += "tfps";
+    status += " / ";
+    status += String(round((float)(master/65535)*100));
+    status += "%";
     OscWiFi.send(broadcastAddress.toString(), OSC_OUT_PORT, "/heartbeat", String(host), WiFi.localIP().toString(), String(VERSION_STRING), status);
 }
 
