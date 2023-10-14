@@ -54,6 +54,8 @@ uint32_t master = 65535;
 
 uint8_t framerate = 25;
 
+uint8_t do_save = false;
+
 #include "backend.h"
 #include "led_helper.h"
 
@@ -193,6 +195,8 @@ void setupOSC(){
     OscWiFi.subscribe(OSC_IN_PORT, "/brightness", brightness);
     OscWiFi.subscribe(OSC_IN_PORT, "/mode", mode);
     OscWiFi.subscribe(OSC_IN_PORT, "/master", master);
+    
+    OscWiFi.subscribe(OSC_IN_PORT, "/save", do_save);
 
     OscWiFi.subscribe(OSC_IN_PORT, "/framerate", framerate);
 
@@ -204,23 +208,6 @@ void setupOSC(){
         ESP.restart();
     });
 
-    OscWiFi.subscribe(OSC_IN_PORT, "/save", [](){
-        preferences.putUInt("univ_a", univ_a);
-        preferences.putUInt("univ_b", univ_b);
-        preferences.putUInt("univ_c", univ_c);
-
-        preferences.putUInt("addr_a", addr_a);
-        preferences.putUInt("addr_b", addr_b);
-        preferences.putUInt("addr_c", addr_c);
-
-        preferences.putUInt("colormult_r", (uint16_t)colormult_r);
-        preferences.putUInt("colormult_g", (uint16_t)colormult_g);
-        preferences.putUInt("colormult_b", (uint16_t)colormult_b);
-
-        preferences.putUInt("brightness", (uint16_t)brightness);
-
-        preferences.putUInt("framerate", (uint16_t)framerate);
-    });
 }
 
 void setup() {
@@ -277,6 +264,24 @@ void setup() {
     Serial.println(broadcastAddress);
 }
 
+void save_prefs(){
+    preferences.putUInt("univ_a", univ_a);
+    preferences.putUInt("univ_b", univ_b);
+    preferences.putUInt("univ_c", univ_c);
+
+    preferences.putUInt("addr_a", addr_a);
+    preferences.putUInt("addr_b", addr_b);
+    preferences.putUInt("addr_c", addr_c);
+
+    preferences.putUInt("colormult_r", (uint16_t)colormult_r);
+    preferences.putUInt("colormult_g", (uint16_t)colormult_g);
+    preferences.putUInt("colormult_b", (uint16_t)colormult_b);
+
+    preferences.putUInt("brightness", (uint16_t)brightness);
+
+    preferences.putUInt("framerate", (uint16_t)framerate);
+}
+
 // backend loop
 void loop(){
   // wifi
@@ -292,5 +297,10 @@ void loop(){
   // OTA
   ArduinoOTA.handle();
   vTaskDelay(LOOP_INTERVAL);
+
+  if(do_save > 0){
+    do_save = 0;
+    save_prefs();
+  }
 }
 
