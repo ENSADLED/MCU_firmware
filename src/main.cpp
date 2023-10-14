@@ -174,6 +174,9 @@ void loop_metapixel(void * _){
 }
 
 void setupOSC(){
+
+    preferences.begin("MPX", false); 
+
     univ_a = preferences.getUInt("univ_a", univ_a);
     univ_b = preferences.getUInt("univ_b", univ_b);
     univ_c = preferences.getUInt("univ_c", univ_c);
@@ -195,7 +198,7 @@ void setupOSC(){
     OscWiFi.subscribe(OSC_IN_PORT, "/brightness", brightness);
     OscWiFi.subscribe(OSC_IN_PORT, "/mode", mode);
     OscWiFi.subscribe(OSC_IN_PORT, "/master", master);
-    
+
     OscWiFi.subscribe(OSC_IN_PORT, "/save", do_save);
 
     OscWiFi.subscribe(OSC_IN_PORT, "/framerate", framerate);
