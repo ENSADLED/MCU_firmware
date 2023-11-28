@@ -13,8 +13,8 @@ Protocole used : MQTT to declare their ID (assignation) and Artnet to manage LED
 
 - To dodge this error you need to install CH34 DRIVER on : https://www.wch.cn/downloads/CH34XSER_MAC_ZIP.html
 
-- then type : ls /dev/cu* and you will see 'yourdevice'+wchusbserial552E0075671
+- then type : `ls /dev/cu*` and you will see 'yourdevice'+wchusbserial552E0075671
 
-- Then type your upload command : pio run -t upload --upload-port /dev/cu.wchusbserial552E0075671 (target your new port)
+- Then type your upload command : `pio run -t upload --upload-port /dev/cu.wchusbserial552E0075671` (target your new port)
 
 - Upload should succeed !
