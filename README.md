@@ -3,16 +3,18 @@
 This is code contains firmware codes for ESP32-WROOM for the intsllation. 
 Protocole used : MQTT to declare their ID (assignation) and Artnet to manage LED control. 
 
-Install pio-cli : https://docs.platformio.org/en/stable/core/index.html
+## upload on macos
 
-Go to repo : metapixel _firmware and run command `pio run -t upload`
+- Install pio-cli : https://docs.platformio.org/en/stable/core/index.html
 
-On mac it is possible to have this error : A fatal error occurred: Failed to write to target RAM (result was 01070000: Operation timed out)
+- Go to repo : metapixel _firmware and run command `pio run -t upload`
 
-To dodge this error you need to install CH34 DRIVER on : https://www.wch.cn/downloads/CH34XSER_MAC_ZIP.html
+- On mac it is possible to have this error : A fatal error occurred: Failed to write to target RAM (result was 01070000: Operation timed out)
 
-then type : ls /dev/cu* and you will see 'yourdevice'+wchusbserial552E0075671
+- To dodge this error you need to install CH34 DRIVER on : https://www.wch.cn/downloads/CH34XSER_MAC_ZIP.html
 
-Then type your upload command : pio run -t upload --upload-port /dev/cu.wchusbserial552E0075671 (target your new port)
+- then type : ls /dev/cu* and you will see 'yourdevice'+wchusbserial552E0075671
 
-Upload should succeed !
+- Then type your upload command : pio run -t upload --upload-port /dev/cu.wchusbserial552E0075671 (target your new port)
+
+- Upload should succeed !
